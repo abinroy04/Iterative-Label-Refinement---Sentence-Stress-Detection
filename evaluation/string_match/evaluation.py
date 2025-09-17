@@ -301,7 +301,7 @@ if __name__ == "__main__":
     dataset_name = "abinroy04/ITA-word-stress"
     
     # Login to authenticate with private repository
-    token = "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"
+    token = ""
     login(token=token)
     
     # Load the dataset

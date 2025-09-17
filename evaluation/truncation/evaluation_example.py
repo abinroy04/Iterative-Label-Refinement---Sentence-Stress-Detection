@@ -12,21 +12,19 @@ import numpy as np
 
 # HuggingFace dataset configuration
 HF_DATASET_NAME = "abinroy04/ITA-word-stress"
-HF_TOKEN = "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"
+HF_TOKEN = "hf_xxx"  # Replace with your actual token
 
-# Add these lines near the top of your file
 os.environ["HF_HOME"] = "/sd1/jhansi/interns/abin/hf_cache"
 os.environ["TRANSFORMERS_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/transformers"
 os.environ["HF_DATASETS_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/datasets"
 os.environ["HUGGINGFACE_HUB_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/hub"
-# Make sure these directories exist
+
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache", exist_ok=True)
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache/transformers", exist_ok=True)
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache/datasets", exist_ok=True)
 os.makedirs("/sd1/jhansi/interns/abin/tmp", exist_ok=True)
 
 
-# Add parent directory to Python path
 CURRENT_DIR = Path(__file__).parent
 PARENT_DIR = CURRENT_DIR.parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -66,11 +64,9 @@ def calculate_metrics_on_dataset(dataset):
     skipped_samples = 0
     
     for i, sample in enumerate(tqdm(dataset)):
-        # Handle the structure of the HuggingFace dataset
         if 'emphasis_indices' in sample and isinstance(sample['emphasis_indices'], dict) and 'binary' in sample['emphasis_indices']:
             gt_stresses = sample['emphasis_indices']['binary']
         elif 'emphasis_indices' in sample:
-            # If preprocessing has flattened the structure
             gt_stresses = sample['emphasis_indices']
         else:
             print(f"Skipping sample {i}: Could not find stress information")
@@ -79,8 +75,7 @@ def calculate_metrics_on_dataset(dataset):
 
         try:
             scored = whistress_client.predict(
-                audio=sample['audio'],
-                # Using ground truth transcription for evaluating stress prediction ability. 
+                audio=sample['audio'], 
                 transcription=sample['transcription'],
                 # transcription=None,
                 return_pairs=True
@@ -141,16 +136,11 @@ def load_hf_dataset(dataset_name=HF_DATASET_NAME, token=HF_TOKEN, split="test", 
     """
     print(f"Loading {split} split from HuggingFace dataset: {dataset_name}...")
     
-    # Login to authenticate with HuggingFace
     login(token=token)
     
-    # Load the specified split
     dataset = load_dataset(dataset_name, split=split, token=token)
     
-    
-    # Preprocess the dataset to adapt it to our code
     def preprocess_sample(sample):
-        # Convert audio array to numpy if it's a list
         if isinstance(sample['audio']['array'], list):
             import numpy as np
             sample['audio']['array'] = np.array(sample['audio']['array'], dtype=np.float32)
@@ -158,7 +148,6 @@ def load_hf_dataset(dataset_name=HF_DATASET_NAME, token=HF_TOKEN, split="test", 
     
     dataset = dataset.map(preprocess_sample)
     
-    # Print a sample to verify structure
     print("\nSample after preprocessing:")
     sample = dataset[0]
     for key, value in sample.items():
@@ -171,51 +160,6 @@ def load_hf_dataset(dataset_name=HF_DATASET_NAME, token=HF_TOKEN, split="test", 
         print(f"Limited dataset to first {len(dataset)} samples")
     
     return dataset
-
-def plot_confusion_matrix(predictions, references, save_path=None):
-    """
-    Plot and optionally save a confusion matrix
-    
-    Args:
-        predictions: List of predicted labels
-        references: List of true labels
-        save_path: Optional path to save the plot
-    """
-    # Calculate confusion matrix
-    cm = confusion_matrix(references, predictions)
-    
-    # Create the plot
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                xticklabels=['No Stress', 'Stress'], 
-                yticklabels=['No Stress', 'Stress'])
-    
-    plt.title('Confusion Matrix for Stress Prediction')
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    
-    # Add accuracy and other stats
-    accuracy = np.sum(np.diag(cm)) / np.sum(cm)
-    plt.text(0.5, -0.1, f'Accuracy: {accuracy:.3f}', 
-             transform=plt.gca().transAxes, ha='center')
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Confusion matrix saved to: {save_path}")
-    
-    plt.show()
-    
-    # Print detailed confusion matrix statistics
-    tn, fp, fn, tp = cm.ravel()
-    print(f"\nConfusion Matrix Statistics:")
-    print(f"True Negatives (No Stress correctly predicted): {tn}")
-    print(f"False Positives (Stress incorrectly predicted): {fp}")
-    print(f"False Negatives (Stress missed): {fn}")
-    print(f"True Positives (Stress correctly predicted): {tp}")
-    
-    return cm
 
 if __name__ == "__main__":
     import json
@@ -236,11 +180,6 @@ if __name__ == "__main__":
     print(f"Recall: {metrics['recall']:.4f}")
     print(f"F1: {metrics['f1']:.4f}")
     
-    # Plot and save confusion matrix
-    cm_save_path = f"/sd1/jhansi/interns/abin/confusion_matrix_{split_name}.png"
-    confusion_matrix_plot = plot_confusion_matrix(predictions, references, save_path=cm_save_path)
-    
-    # Save or log the metrics as needed
     results = {
         "dataset": "huggingface",
         "split": split_name,

@@ -6,7 +6,6 @@ import sys
 from huggingface_hub import login
 import os
 
-# Add parent directory to Python path
 CURRENT_DIR = Path(__file__).parent
 PARENT_DIR = CURRENT_DIR.parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -19,7 +18,7 @@ os.environ["HF_HOME"] = "/sd1/jhansi/interns/abin/hf_cache"
 os.environ["TRANSFORMERS_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/transformers"
 os.environ["HF_DATASETS_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/datasets"
 os.environ["HUGGINGFACE_HUB_CACHE"] = "/sd1/jhansi/interns/abin/hf_cache/hub"
-# Make sure these directories exist
+
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache", exist_ok=True)
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache/transformers", exist_ok=True)
 os.makedirs("/sd1/jhansi/interns/abin/hf_cache/datasets", exist_ok=True)
@@ -27,7 +26,7 @@ os.makedirs("/sd1/jhansi/interns/abin/tmp", exist_ok=True)
 
 FINE_TUNED_MODEL_DIR = "/sd1/jhansi/interns/abin/hug-whisper-tune/output/checkpoint-387"
 HF_DATASET_NAME = "abinroy04/ITA-word-stress"
-HF_TOKEN = "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"
+HF_TOKEN = "hf_xxx"  # Replace with your actual 
 
 precision_metric = evaluate.load("precision")
 recall_metric = evaluate.load("recall")
@@ -113,10 +112,8 @@ def calculate_metrics_on_dataset(dataset):
                     sample['audio']['sampling_rate']
                 )
             
-            # Use fine-tuned transcription in WhiStress if available
             scored = whistress_client.predict(
                 audio=sample['audio'],
-                # Choose one of these options:
                 # transcription=fine_tuned_transcription,  # Use fine-tuned model's transcription
                 transcription=sample['transcription'],  # Use ground truth transcription
                 # transcription=None,                     # Use WhiStress's internal ASR
@@ -183,28 +180,18 @@ def load_hf_dataset(dataset_name=HF_DATASET_NAME, token=HF_TOKEN, max_samples=No
     # Login to authenticate with HuggingFace
     login(token=token)
     
-    # Load the test split only
     dataset = load_dataset(dataset_name, split="test", token=token)
     
-    # Print info about the dataset
-    print(f"Dataset format: {dataset.format}")
-    print(f"Dataset size: {len(dataset)} samples")
-    print(f"Dataset features: {list(dataset.features.keys())}")
-    
-    # Display the nested structure of emphasis_indices
     if 'emphasis_indices' in dataset.features:
         print("\nEmphasis indices structure:")
         for subfield in dataset.features['emphasis_indices'].keys():
             print(f"  {subfield}: {dataset.features['emphasis_indices'][subfield]}")
     
-    # Modify the dataset to make emphasis_indices.binary the default emphasis_indices for compatibility
     def preprocess_sample(sample):
-        # Check if emphasis_indices.binary exists and move it up one level
         if isinstance(sample['emphasis_indices'], dict) and 'binary' in sample['emphasis_indices']:
             sample['emphasis_indices_original'] = sample['emphasis_indices'].copy()
             sample['emphasis_indices'] = sample['emphasis_indices']['binary']
         
-        # Convert audio array to numpy if it's a list
         if isinstance(sample['audio']['array'], list):
             import numpy as np
             sample['audio']['array'] = np.array(sample['audio']['array'], dtype=np.float32)
@@ -231,7 +218,6 @@ def load_hf_dataset(dataset_name=HF_DATASET_NAME, token=HF_TOKEN, max_samples=No
 if __name__ == "__main__":
     import json
     
-    # Set fixed parameters
     max_samples = None  # Use all samples
     
     print(f"Loading HuggingFace dataset (test split)...")

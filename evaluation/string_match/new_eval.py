@@ -1,11 +1,11 @@
 import torch
-import evaluate
+import Levenshtein
+import re    
 from tqdm import tqdm
 from pathlib import Path
 import sys
 from huggingface_hub import login
 
-# Add parent directory to Python path
 CURRENT_DIR = Path(__file__).parent
 PARENT_DIR = CURRENT_DIR.parent.parent
 if str(PARENT_DIR) not in sys.path:
@@ -13,12 +13,10 @@ if str(PARENT_DIR) not in sys.path:
 from whistress import WhiStressInferenceClient
 from datasets import Dataset, concatenate_datasets
 
-# Add imports for the fine-tuned Whisper model
 from transformers import WhisperForConditionalGeneration, WhisperProcessor, GenerationConfig
 
 FINE_TUNED_MODEL_DIR = "/sd1/jhansi/interns/abin/hug-whisper-tune/output/checkpoint-387"
 
-# Load the original WhiStress client
 whistress_client = WhiStressInferenceClient(device="cuda" if torch.cuda.is_available() else "cpu")
 
 # Load the fine-tuned Whisper model
@@ -68,12 +66,10 @@ def transcribe_with_fine_tuned_model(audio_array, sampling_rate=16000):
         print(f"Error in fine-tuned model transcription: {e}")
         return None
 
-# Define normalize function at global scope so it can be used by all functions
 def normalize(word):
     """
     Normalize words for comparison, handling both word and digit forms of numbers.
     """
-    # Basic normalization first
     w = word.lower().strip(".,!?;:'\"")
     
     # Map number words to digits
@@ -87,16 +83,11 @@ def normalize(word):
         "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four",
         "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine"
     }
-    
-    # If it's a simple word-to-digit mapping
     if w in number_map:
         return number_map[w]
-    
-    # Special case for numbers like "10" -> "ten"
     try:
         num_val = int(w)
         if 0 <= num_val <= 20:
-            # Map digits back to words for numbers 0-20
             digit_to_word = {
                 0: "zero", 1: "one", 2: "two", 3: "three", 4: "four",
                 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine",
@@ -106,20 +97,16 @@ def normalize(word):
             }
             return digit_to_word[num_val]
     except ValueError:
-        pass  # Not a simple number
+        pass 
     
     return w
 
-# Helper function for improved string matching
 def get_best_word_alignments(source_words, target_words):
     """
     Get the best alignment between source and target words using dynamic programming.
     Returns a list of (source_idx, target_idx) pairs.
     """
-    import Levenshtein
-    import re
     
-    # Pre-process words to handle punctuation and case
     processed_source = []
     processed_target = []
     
@@ -157,12 +144,9 @@ def get_best_word_alignments(source_words, target_words):
             row.append(sim)
         similarity.append(row)
     
-    # Use dynamic programming to find optimal alignment
-    # This approach tries to maximize global alignment quality
     alignments = []
     used_targets = set()
-    
-    # First pass: Assign high confidence matches
+    # First pass: Try to align words with high confidence
     for s_idx, s_scores in enumerate(similarity):
         best_score = -1
         best_t_idx = -1
@@ -200,8 +184,6 @@ def get_best_word_alignments(source_words, target_words):
     return sorted(alignments)  # Sort by source index
 
 def calculate_metrics_on_dataset(dataset):
-    # Try to import Levenshtein for better string matching
-    import Levenshtein
     
     total_words = 0
     sentence_tables_printed = 0
@@ -210,12 +192,10 @@ def calculate_metrics_on_dataset(dataset):
     all_ft_stresses = []
     
     for sample in tqdm(dataset):
-        # Get stress pattern - check which field to use based on structure
-        # After preprocessing, emphasis_indices should be directly accessible as a list
         if 'emphasis_binary' in sample:
             gt_stresses = sample['emphasis_binary']
         else:
-            gt_stresses = sample['emphasis_indices']  # Now this is already the binary list
+            gt_stresses = sample['emphasis_indices']
             
         gt_words = sample['transcription'].split()
         total_words += len(gt_words)
@@ -410,24 +390,19 @@ def load_hf_dataset(dataset_name="abinroy04/ITA-word-stress", split="test", max_
     return dataset
 
 if __name__ == "__main__":
-    # Try to load dataset from HuggingFace
     try:
         print("Loading dataset from HuggingFace: abinroy04/ITA-word-stress...")
         
-        # Get HuggingFace token from user or use stored token
-        hf_token = "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"
+        hf_token = ""
         
         # Login to HuggingFace
         login(token=hf_token)
         
-        # Load dataset from HuggingFace - specify the split you want
         dataset_name = "abinroy04/ITA-word-stress"
-        split = "test"  # Change to "train" if you want the training split
-        
-        # Load the dataset
+        split = "test"
+
         dataset = load_hf_dataset(dataset_name=dataset_name, split=split)
             
-        # Print a sample to verify structure
         print("\nSample from dataset:")
         sample = dataset[0]
         for key, value in sample.items():
