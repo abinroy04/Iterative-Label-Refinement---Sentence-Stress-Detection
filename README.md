@@ -5,15 +5,3 @@ The model is built on top of the [`whisper-small.en`](https://huggingface.co/ope
 ## 🔧 Installation
 
 Note: Add Hugging Face token to be able to download the datasets for training
-
-Expected structure:
-
-```
-whistress/
-├── weights/
-│   └── additional_decoder_block.pt
-│   └── classifier.pt
-│   └── metadata.json
-├── ...
-...
-```
